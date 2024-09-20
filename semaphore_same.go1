@@ -1,0 +1,30 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+)
+
+var key = 2223
+
+func main() {
+	id, err, err2 := SemGet(key) // 在接收到启动信号后调用 semGet
+	if int(id) < 0 || err != 0 || err2 != nil {
+		log.Fatalf("获取信号量组失败: %v, %v\n", err.Error(), err2.Error())
+		return
+	}
+	_, _, err = SemLock(int(id))
+	if err != 0 {
+		log.Fatalf("获取锁失败: %v\n", err.Error())
+	}
+	defer func() {
+		_, _, err = SemRelease(int(id))
+		if err != 0 {
+			log.Fatalf("释放锁失败: %v\n", err.Error())
+		}
+		fmt.Printf("进行锁释放，对应的信号量值为%d\n", SemShow(int(id)))
+	}()
+	fmt.Printf("进行锁获取，查询的信号量值为%d\n", SemShow(int(id)))
+	time.Sleep(1 * time.Second)
+}
