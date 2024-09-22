@@ -8,13 +8,11 @@ import (
 	"time"
 )
 
-var key = 2216
-
 func worker(index int, startSignal <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 	<-startSignal // 等待启动信号
 	//同步处理
-	id, err, err2 := semaphore.SemGet(key) // 在接收到启动信号后调用 semGet
+	id, err, err2 := semaphore.SemGet() // 在接收到启动信号后调用 semGet
 	if int(id) < 0 || err != 0 || err2 != nil {
 		log.Fatalf("线程%d 获取信号量组失败: %v, %v\n", index, err.Error(), err2.Error())
 		return

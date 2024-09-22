@@ -5,9 +5,9 @@ import (
 	"go-test/semaphore"
 )
 
-var key = 2216
-
 func main() {
-	id, _, _ := semaphore.SemGet(key) // 在接收到启动信号后调用 semGet
+	id, _, _ := semaphore.SemGet() // 在接收到启动信号后调用 semGet
 	fmt.Printf("查询的信号量值为%d\n", semaphore.SemShow(int(id)))
+	// wd, _ := os.Getwd()
+	// fmt.Printf("目录:%s\n", wd)
 }

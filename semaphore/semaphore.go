@@ -1,10 +1,14 @@
 package semaphore
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"syscall"
 	"unsafe"
+
+	"gopkg.in/yaml.v3"
 )
 
 /*
@@ -31,17 +35,36 @@ import "C"
 
 var lockFile = "/home/juhkff/projects/go-test/file/lockFile"
 var changeFile = "/home/juhkff/projects/go-test/file/changeFile"
+var configFile = "/home/juhkff/projects/go-test/config/config.yaml"
 
-// 并发量
+// 默认信号量key，会被配置文件的值覆盖
+var LockKey = 2216
+
+// 默认并发量，会被配置文件的值覆盖
 var ConcurrentNum = 30
+
+type Config struct {
+	LockKey       int `yaml:"lockKey"`
+	ConcurrentNum int `yaml:"concurrentNum"`
+}
+
+func init() {
+	config, err := ReadConfig(configFile)
+	if err != nil {
+		log.Fatalf("初始化: 读取配置失败: %v\n", err)
+	} else {
+		ConcurrentNum = config.ConcurrentNum
+		log.Printf("读取设定并发量: %d\n", ConcurrentNum)
+	}
+}
 
 func fileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return !os.IsNotExist(err)
 }
 
-func SetSemaphore(key int) (r1 uintptr, r2 uintptr, err syscall.Errno) {
-	r1, r2, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(key), uintptr(1), uintptr(C.IPC_CREAT|00666))
+func SetSemaphore() (r1 uintptr, r2 uintptr, err syscall.Errno) {
+	r1, r2, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(LockKey), uintptr(1), uintptr(C.IPC_CREAT|00666))
 	if int(r1) < 0 {
 		return
 	}
@@ -87,8 +110,8 @@ func getChangeFile() (file *os.File, err error) {
 
 // SemGet 获取信号量组ID
 // return : r1-semId, err-syscall.Errno, err2-error
-func SemGet(key int) (r1 uintptr, err syscall.Errno, err2 error) {
-	r1, _, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(key), uintptr(1), uintptr(00666))
+func SemGet() (r1 uintptr, err syscall.Errno, err2 error) {
+	r1, _, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(LockKey), uintptr(1), uintptr(00666))
 	var file *os.File
 	//第一次运行需要初始化信号量
 	if int(r1) < 0 {
@@ -113,10 +136,10 @@ func SemGet(key int) (r1 uintptr, err syscall.Errno, err2 error) {
 			}
 		}()
 		//二次验证
-		r1, _, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(key), uintptr(1), uintptr(00666))
+		r1, _, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(LockKey), uintptr(1), uintptr(00666))
 		if int(r1) < 0 {
 			//初始化信号量
-			r1, _, err = SetSemaphore(key)
+			r1, _, err = SetSemaphore()
 			if int(r1) < 0 {
 				log.Printf("信号量初始化失败: %v\n", err)
 				return
@@ -186,4 +209,24 @@ func SemShow(semId int) int {
 		log.Printf("信号量读取出错: %v,%v,%v on id %d\n", r1, r2, err, semId)
 	}
 	return int(r1)
+}
+
+func ReadConfig(filePath string) (config Config, err error) {
+	configFile, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("无法打开配置文件: %v\n", err)
+		return
+	}
+	defer configFile.Close()
+	configData, err := io.ReadAll(configFile)
+	if err != nil {
+		fmt.Printf("无法读取配置文件: %v\n", err)
+		return
+	}
+	err = yaml.Unmarshal(configData, &config)
+	if err != nil {
+		return config, fmt.Errorf("无法解析配置文件: %v", err)
+	}
+	//加载配置文件
+	return config, nil
 }
