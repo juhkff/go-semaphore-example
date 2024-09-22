@@ -1,4 +1,4 @@
-package main
+package semaphore
 
 import (
 	"log"
@@ -29,23 +29,23 @@ int semctl_setval(int semid, int semnum, int cmd, int val) {
 */
 import "C"
 
-var lockFile = "../go-test/lockFile"
-var changeFile = "../go-test/changeFile"
+var lockFile = "/home/juhkff/projects/go-test/file/lockFile"
+var changeFile = "/home/juhkff/projects/go-test/file/changeFile"
 
 // 并发量
-var concurrentNum = 30
+var ConcurrentNum = 30
 
 func fileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return !os.IsNotExist(err)
 }
 
-func setSemaphore(key int) (r1 uintptr, r2 uintptr, err syscall.Errno) {
+func SetSemaphore(key int) (r1 uintptr, r2 uintptr, err syscall.Errno) {
 	r1, r2, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(key), uintptr(1), uintptr(C.IPC_CREAT|00666))
 	if int(r1) < 0 {
 		return
 	}
-	val := uintptr(C.semctl_setval(C.int(r1), 0, C.SETVAL, C.int(concurrentNum)))
+	val := uintptr(C.semctl_setval(C.int(r1), 0, C.SETVAL, C.int(ConcurrentNum)))
 	if int(val) < 0 {
 		//todo :打印errno
 		log.Printf("信号量设值失败\n")
@@ -116,7 +116,7 @@ func SemGet(key int) (r1 uintptr, err syscall.Errno, err2 error) {
 		r1, _, err = syscall.Syscall(syscall.SYS_SEMGET, uintptr(key), uintptr(1), uintptr(00666))
 		if int(r1) < 0 {
 			//初始化信号量
-			r1, _, err = setSemaphore(key)
+			r1, _, err = SetSemaphore(key)
 			if int(r1) < 0 {
 				log.Printf("信号量初始化失败: %v\n", err)
 				return
@@ -139,7 +139,7 @@ func SemLock(semId int) (r1 uintptr, r2 uintptr, err syscall.Errno) {
 		return
 	}
 	//申请共享锁
-	file, err2 := getChangeFile()
+	file, err2 := os.OpenFile(changeFile, os.O_RDWR|os.O_CREATE, 0666)
 	if err2 != nil {
 		log.Printf("获取共享锁文件失败: %v\n", err2)
 		return

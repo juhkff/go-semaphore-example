@@ -9,7 +9,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${fileDirname}/semaphore_use.go"
+      "program": "${fileDirname}/experiment.go"
     }
   ]
 }

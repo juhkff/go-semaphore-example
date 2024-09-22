@@ -1,4 +1,4 @@
-package main
+package semaphore_define_with_semaphore
 
 import (
 	"fmt"
